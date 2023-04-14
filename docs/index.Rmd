@@ -1,0 +1,174 @@
+---
+title: "Analysis of the London Fire Brigade datasets:"
+subtitle: "An investigation of the Incident Groups and Mobilisation records"
+author: "Franklin Schram"
+date: "2023-04-06"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Preamble
+
+This dataset
+
+## 2. Required libraries
+
+You can also embed plots, for example:
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(dplyr)      #
+library(tidyr)      #
+library(readr)      #
+library(ggplot2)    #
+library(scales)     # 
+library(kableExtra) #
+```
+
+## 3. Downloading the datasets
+
+### a. Prepping folders
+
+```{bash folder preparation, message=FALSE, warning=FALSE}
+DIR=/tmp/LFB_ANALYSIS
+if [ -d "$DIR" ];
+then
+    echo "$DIR directory exists."
+else
+	echo "Creating workspace at /tmp/LFB_ANALYSIS"
+	mkdir "$DIR directory does not exist."
+fi
+
+```
+
+The data is available on the London Data Store
+
+### b. Downloading the data
+
+```{bash downloading the data, message=FALSE, warning=FALSE}
+
+```
+
+## 4. Reading in CSV and inspecting the data
+
+```{r reading csv, message=FALSE, warning=FALSE, highlight=TRUE}
+lfb_incidents = read_csv("LFB_Incidents.csv", col_names = TRUE, num_threads = 15)
+```
+
+```{r column names}
+spec(lfb_incidents)
+```
+
+## 5. Investigating the incident file
+
+We first start to investigate
+
+### a. Overview of total incidents by group
+
+```{r total incidents by group 2009-2023, message=FALSE, warning=FALSE, highlight=TRUE}
+lfb_incidents_all <- lfb_incidents %>%
+  select(IncidentGroup) %>%
+  group_by(IncidentGroup) %>%
+  summarise(total_count=n()) %>%
+  arrange(total_count)
+```
+
+```{r total incidents by group 2009-2023 table, message=FALSE, warning=FALSE, highlight=TRUE}
+kbl(lfb_incidents_all) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive",full_width = F))
+```
+
+```{r plot, message=FALSE, warning=FALSE, highlight=TRUE}
+# Prevent scientific notation in charts
+options(scipen = 999)
+
+# Plotting with ggplot2
+ggplot(data=lfb_incidents_all, aes(x=reorder(IncidentGroup, -total_count),
+  y=total_count)) +
+  coord_flip() +
+  labs(
+    title = "London Fire Brigade: Cumulative incidents recorded 2009-2023", 
+    subtitle = "Broken down by Incident Groups",
+    caption = "(Based on data from the London Fire Brigade)",
+    x = "Incident Group", y = "Numbers of incidents recorded",) +
+  geom_col()
+```
+
+```{r incidents per caldendar year, message=FALSE, warning=FALSE, highlight=TRUE}
+lfb_incidents_per_cy <- lfb_incidents %>%
+  select(IncidentGroup,CalYear) %>%
+  group_by(IncidentGroup,CalYear) %>%
+  summarise(total_count = n(), .groups = 'drop') %>%
+  arrange(IncidentGroup, CalYear, total_count)
+#  pivot_wider(
+#    names_from = CalYear,
+#    values_from = total_count
+#  )
+```
+
+```{r plot incidents per calendar year, message=FALSE, warning=FALSE, highlight=TRUE}
+ggplot(lfb_incidents_per_cy, aes(x = reorder(CalYear, -CalYear),
+                                 y = total_count, 
+                                 fill = reorder(IncidentGroup, -total_count))) +
+  coord_flip() +
+  labs(
+    title = "London Fire Brigade: Incidents recorded per calendar year 2009-2023", 
+    subtitle = "Broken down by Incident Groups",
+    caption = "(Based on data from the London Fire Brigade)",
+    x = "Incident Group", y = "Numbers recorded",) +
+  geom_col(position = "dodge")
+```
+
+### b. Overview of false alarms
+
+### c. Overview of fire incidents
+
+```{r Fires breakdown, message=FALSE, warning=FALSE, highlight=TRUE}
+
+lfb_incidents_fires <- lfb_incidents %>%
+  select(StopCodeDescription, PropertyCategory) %>%
+  filter(StopCodeDescription == "Primary Fire") %>%
+  group_by(PropertyCategory) %>%
+  summarise(total_count=n(), .groups = 'drop') %>%
+  mutate(freq = round(total_count / sum(total_count) *100, 3)) %>%
+  arrange(desc(total_count))
+lfb_incidents_fires
+```
+
+### d. Overview of special services
+
+```{r Special services breakdown, message=FALSE, warning=FALSE, highlight=TRUE}
+
+lfb_incidents_ss <- lfb_incidents %>%
+  select(SpecialServiceType) %>%
+  filter( !is.na(SpecialServiceType)) %>%
+  group_by(SpecialServiceType) %>%
+  summarise(total_count=n()) %>%
+  mutate(freq = round(total_count / sum(total_count) *100, 2)) %>%
+  arrange(desc(total_count))
+```
+
+```{r special services breakdown table, message=FALSE, warning=FALSE, highlight=TRUE}
+kbl(lfb_incidents_ss) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  
+```
+
+```{r plottt, message=FALSE, warning=FALSE, highlight=TRUE}
+
+# Plotting with ggplot2
+ggplot(data=lfb_incidents_ss, aes(x=reorder(SpecialServiceType, -total_count),
+  y=total_count)) +
+  coord_flip() +
+  labs(
+    title = "London Fire Brigade: Special Services recorded 2009-2023", 
+    subtitle = "Broken down by Type",
+    caption = "(Data: London Fire Brigade)",
+    x = "Special Service Type", y = "Numbers of incidents recorded",) +
+  geom_text(aes(label = freq), hjust = -0.10, colour = "black") +
+  geom_col()
+```
